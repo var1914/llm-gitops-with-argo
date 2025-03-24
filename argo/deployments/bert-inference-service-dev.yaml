@@ -1,0 +1,11 @@
+apiVersion: llm.example.com/v1alpha1
+kind: LLMDeployment
+metadata:
+  name: bert-inference-service
+  namespace: llm-dev
+spec:
+  modelRef: "bert-inference"
+  replicas: 1
+  port: 8080
+  enablePersistence: true
+  persistentVolumeSize: "2Gi"
