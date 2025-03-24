@@ -1,85 +1,128 @@
-# LLM Container Quick Start Guide
+# LLM GitOps with ArgoCD Quick Start Guide
 
-This guide explains how to containerize and deploy a pre-trained or fine-tuned language model for inference using Docker.
+This guide explains how to deploy pre-trained or fine-tuned language models for inference using GitOps practices with ArgoCD and a custom LLM Operator.
+
+## Architecture Overview
+
+This repository implements GitOps-based deployment of LLM inference services using:
+- **ArgoCD**: For declarative, Git-based delivery of Kubernetes manifests
+- **Custom LLM Operator**: From [llm-operator](https://github.com/var1914/llm-operator) repository
+- **Kubernetes**: For container orchestration and scaling
 
 ## Getting Started
 
 ### Prerequisites
 
-- Docker and Docker Compose installed
+- Kubernetes cluster (local or cloud)
+- ArgoCD installed on your cluster
+- Access to the LLM Operator ([github.com/var1914/llm-operator](https://github.com/var1914/llm-operator))
 - (Optional) NVIDIA GPU with CUDA support for faster inference
-- (Optional) Pre-trained or fine-tuned model
 
-### Basic Usage
+### Installation Steps
 
-1. Build and start the container:
+1. **Install the LLM Operator**
 
-```bash
-docker-compose up --build
+   The LLM Operator must be installed first from the separate repository: https://github.com/var1914/llm-operator/blob/main/README.md
+   
+2. **Deploy using ArgoCD**
+
+   Create an ArgoCD application pointing to this repository:
+
+   ```bash
+   kubectl apply -f dev-llm-app.yaml
+   ```
+
+   This will automatically deploy:
+   - The `llm-dev` namespace
+   - The BERT model configuration
+   - The LLM inference service
+
+3. **Verify the deployment**
+
+   ```bash
+   kubectl get applications -n argocd
+   kubectl get llmmodel,llmdeployment -n llm-dev
+   ```
+
+## Configuration Options
+
+The deployment is configured through Kubernetes manifests:
+
+### Model Configuration (`models/bert-inference-dev.yaml`)
+
+```yaml
+apiVersion: llm.example.com/v1alpha1
+kind: LLMModel
+metadata:
+  name: bert-inference
+  namespace: llm-dev
+spec:
+  modelName: "BERT Inference Service - Dev"
+  image: "your-registry/llm-inference-service:latest"
+  resources:
+    cpu: "0.5"
+    memory: "1Gi"
+  environmentVariables:
+    MODEL_NAME: "prajjwal1/bert-tiny"
+    DEVICE: "cpu"
+    WORKERS: "1"
+    TRANSFORMERS_CACHE: "/app/.cache/huggingface"
 ```
 
-2. The service will automatically download a small default model (`prajjwal1/bert-tiny`) and start the inference API on port 8080.
+### Deployment Configuration (`deployments/bert-inference-service-dev.yaml`)
 
-3. Test the API:
-
-```bash
-curl -X POST http://localhost:8080/predict \
-  -H "Content-Type: application/json" \
-  -d '{"texts": ["This is a great movie!", "I did not enjoy this film at all."]}'
+```yaml
+apiVersion: llm.example.com/v1alpha1
+kind: LLMDeployment
+metadata:
+  name: bert-inference-service
+  namespace: llm-dev
+spec:
+  modelRef: "bert-inference"
+  replicas: 1
+  port: 8080
+  enablePersistence: true
+  persistentVolumeSize: "2Gi"
 ```
 
 ## Using Your Own Model
 
 ### Option 1: Specify a HuggingFace Model
 
-You can use any model from the HuggingFace Hub by setting the `MODEL_NAME` environment variable:
+You can use any model from the HuggingFace Hub by updating the `MODEL_NAME` environment variable in your model configuration:
 
 ```yaml
-environment:
-  - MODEL_NAME=distilbert-base-uncased-finetuned-sst-2-english
+environmentVariables:
+  MODEL_NAME: "distilbert-base-uncased-finetuned-sst-2-english"
 ```
 
-### Option 2: Mount a Local Model
+### Option 2: Use a Custom Container
 
-If you have a fine-tuned model saved locally:
+For models requiring custom preprocessing or postprocessing, build a custom container and push it to your registry:
 
-1. Uncomment and modify the volume mount in `docker-compose.yml`:
-
-```yaml
-volumes:
-  - ./path/to/my-model:/app/model
-```
-
-2. Remove or comment out the `MODEL_NAME` environment variable
-
-## Configuration Options
-
-You can customize the container behavior through environment variables in `docker-compose.yml`:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MODEL_NAME` | HuggingFace model to download | `prajjwal1/bert-tiny` |
-| `DEVICE` | Device to use for inference (`cpu` or `cuda`) | `cpu` |
-| `PORT` | Port to expose the API | `8080` |
-| `WORKERS` | Number of Gunicorn workers | `1` |
-| `NUM_LABELS` | Number of classification labels | `2` |
+1. Update the `image` field in the model configuration
+2. Update any required environment variables
 
 ## API Endpoints
 
-The following endpoints are available:
+Once deployed, the service exposes the following endpoints:
 
 - `GET /health` - Check if the service is healthy
 - `GET /model-info` - Get information about the loaded model
 - `POST /predict` - Make predictions on text inputs
 - `POST /batch-predict` - Make predictions on a batch of text inputs with IDs
-- `POST /reload-model` - Reload the model (e.g., after updating the mounted model)
+- `POST /reload-model` - Reload the model (e.g., after model update)
 
 ## Examples
 
 ### Simple Prediction Request
 
 ```bash
-curl -X POST http://localhost:8080/predict \
+# Get the service endpoint
+SERVICE_URL=$(kubectl get svc -n llm-dev bert-inference-service -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+# Send a request
+curl -X POST http://$SERVICE_URL:8080/predict \
   -H "Content-Type: application/json" \
   -d '{
     "texts": ["This is a great movie!"],
@@ -90,7 +133,7 @@ curl -X POST http://localhost:8080/predict \
 ### Batch Prediction with IDs
 
 ```bash
-curl -X POST http://localhost:8080/batch-predict \
+curl -X POST http://$SERVICE_URL:8080/batch-predict \
   -H "Content-Type: application/json" \
   -d '{
     "items": [
@@ -101,17 +144,36 @@ curl -X POST http://localhost:8080/batch-predict \
   }'
 ```
 
+## GitOps Workflow
+
+The GitOps workflow for updating your LLM deployments:
+
+1. Make changes to the YAML files in this repository
+2. Commit and push to your Git repository
+3. ArgoCD automatically detects changes and syncs the application
+4. The LLM Operator reconciles the changes to update your deployments
+
 ## Performance Tuning
 
 For production deployments, consider:
 
-1. Using GPU acceleration by setting `DEVICE=cuda`
-2. Increasing the number of workers based on your CPU cores
-3. Adjusting resource limits in the Docker Compose file
-4. Uncommenting the Prometheus and Grafana services for monitoring
+1. Using GPU acceleration by setting `DEVICE=cuda` in your model configuration
+2. Increasing the number of replicas in the deployment configuration
+3. Adjusting resource limits in the model configuration
+4. Adding HPA (Horizontal Pod Autoscaler) for automatic scaling
+5. Using service meshes for advanced traffic routing and blue/green deployments
+
+## Monitoring
+
+For monitoring, we recommend:
+
+1. Deploying Prometheus and Grafana for metrics collection
+2. Setting up alerts for service health and performance
+3. Integrating with your existing logging solution
 
 ## Troubleshooting
 
-- **Container fails to start**: Check the logs with `docker-compose logs`
-- **Model download fails**: Ensure internet connectivity or use a local model
-- **Out of memory errors**: Reduce the number of workers or increase memory limits
+- **Pods fail to start**: Check the logs with `kubectl logs -n llm-dev <pod-name>`
+- **Model download fails**: Ensure internet connectivity or use a custom image with pre-loaded models
+- **Out of memory errors**: Increase memory limits in the model configuration
+- **ArgoCD sync fails**: Check ArgoCD logs and ensure Git repository is accessible

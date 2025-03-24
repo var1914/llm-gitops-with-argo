@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/yourusername/llm-gitops.git
+    repoURL: git@github.com:var1914/llm-gitops-with-argo.git
     targetRevision: HEAD
     path: .
     directory:
