@@ -32,7 +32,7 @@ This repository implements GitOps-based deployment of LLM inference services usi
    docker push your-registry/llm-inference-service:latest
    ```
 
-   Make sure to update the image reference in `models/bert-inference-dev.yaml` to match your registry and tag.
+   Make sure to update the image reference in `argo/models/bert-inference-dev.yaml` to match your registry and tag.
 
 2. **Install the LLM Operator**
 
