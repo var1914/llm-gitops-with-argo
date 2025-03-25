@@ -20,16 +20,30 @@ This repository implements GitOps-based deployment of LLM inference services usi
 
 ### Installation Steps
 
-1. **Install the LLM Operator**
+1. **Build and Push the LLM Inference Service Image**
+
+   Before deploying to Kubernetes, build and push the Docker image for the LLM inference service:
+
+   ```bash
+   # Build the Docker image, dockerfile present under src/
+   docker build -t your-registry/llm-inference-service:latest .
+   
+   # Push to your container registry
+   docker push your-registry/llm-inference-service:latest
+   ```
+
+   Make sure to update the image reference in `models/bert-inference-dev.yaml` to match your registry and tag.
+
+2. **Install the LLM Operator**
 
    The LLM Operator must be installed first from the separate repository: https://github.com/var1914/llm-operator/blob/main/README.md
    
-2. **Deploy using ArgoCD**
+3. **Deploy using ArgoCD**
 
    Create an ArgoCD application pointing to this repository:
 
    ```bash
-   kubectl apply -f dev-llm-app.yaml
+   kubectl apply -f argo/applications/dev-llm-app.yaml
    ```
 
    This will automatically deploy:
@@ -37,7 +51,7 @@ This repository implements GitOps-based deployment of LLM inference services usi
    - The BERT model configuration
    - The LLM inference service
 
-3. **Verify the deployment**
+4. **Verify the deployment**
 
    ```bash
    kubectl get applications -n argocd
@@ -48,7 +62,7 @@ This repository implements GitOps-based deployment of LLM inference services usi
 
 The deployment is configured through Kubernetes manifests:
 
-### Model Configuration (`models/bert-inference-dev.yaml`)
+### Model Configuration (`argo/models/bert-inference-dev.yaml`)
 
 ```yaml
 apiVersion: llm.example.com/v1alpha1
@@ -69,7 +83,7 @@ spec:
     TRANSFORMERS_CACHE: "/app/.cache/huggingface"
 ```
 
-### Deployment Configuration (`deployments/bert-inference-service-dev.yaml`)
+### Deployment Configuration (`argo/deployments/bert-inference-service-dev.yaml`)
 
 ```yaml
 apiVersion: llm.example.com/v1alpha1
