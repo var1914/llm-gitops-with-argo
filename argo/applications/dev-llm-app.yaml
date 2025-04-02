@@ -6,11 +6,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: git@github.com:var1914/llm-gitops-with-argo.git
+    repoURL: https://github.com/yourusername/llm-gitops.git
     targetRevision: HEAD
-    path: .
-    directory:
-      include: "namespaces/llm-dev.yaml,models/bert-inference-dev.yaml,deployments/bert-inference-service-dev.yaml"
+    path: overlays/dev
   destination:
     server: https://kubernetes.default.svc
     namespace: llm-dev
@@ -18,3 +16,5 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,10 @@
+apiVersion: llm.example.com/v1alpha1
+kind: LLMModel
+metadata:
+  name: bert-inference
+spec:
+  resources:
+    cpu: "0.5"
+    memory: "1Gi"
+  environmentVariables:
+    MODEL_NAME: "prajjwal1/bert-tiny"  # Smaller model for dev
