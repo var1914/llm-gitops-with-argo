@@ -2,15 +2,14 @@ apiVersion: llm.example.com/v1alpha1
 kind: LLMModel
 metadata:
   name: bert-inference
-  namespace: llm-dev
 spec:
-  modelName: "BERT Inference Service - Dev"
+  modelName: "BERT Inference Service"
   image: "your-registry/llm-inference-service:latest"
   resources:
-    cpu: "0.5"
-    memory: "1Gi"
+    cpu: "1"
+    memory: "2Gi"
   environmentVariables:
     MODEL_NAME: "prajjwal1/bert-tiny"
     DEVICE: "cpu"
-    WORKERS: "1"
+    WORKERS: "2"
     TRANSFORMERS_CACHE: "/app/.cache/huggingface"

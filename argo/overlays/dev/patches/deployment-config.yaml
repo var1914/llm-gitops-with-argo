@@ -1,0 +1,7 @@
+apiVersion: llm.example.com/v1alpha1
+kind: LLMDeployment
+metadata:
+  name: bert-inference-service
+spec:
+  replicas: 1  # Fewer replicas for dev
+  persistentVolumeSize: "2Gi"  # Smaller storage for dev

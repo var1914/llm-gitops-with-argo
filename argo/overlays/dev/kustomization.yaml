@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: llm-dev
+
+resources:
+  - ../../base/llmmodels
+  - ../../base/llmdeployments
+  - ../../base/llmsnamespaces
+
+patches:
+  - path: patches/model-config.yaml
+  - path: patches/deployment-config.yaml
